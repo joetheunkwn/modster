@@ -830,7 +830,7 @@ body::before {
 
 .export-preview-viewport {
   width: 100%;
-  aspect-ratio: 9 / 10;
+  aspect-ratio: 9 / 16;
   border-radius: var(--radius-sm);
   overflow: hidden;
   position: relative;
@@ -854,6 +854,126 @@ body::before {
   user-select: none;
   pointer-events: none;
   will-change: transform;
+  z-index: 1;
+}
+
+/* ── Guide overlay ── */
+.export-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-guide-gradient {
+  flex: 0 0 42%;
+  background: linear-gradient(
+    180deg,
+    transparent 40%,
+    rgba(10, 10, 10, 0.6) 70%,
+    rgba(10, 10, 10, 0.95) 100%
+  );
+}
+
+.export-guide-content {
+  flex: 1;
+  background: rgba(10, 10, 10, 0.95);
+  padding: 4% 6%;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-guide-title {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(240, 240, 240, 0.7);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.export-guide-sub {
+  font-family: var(--font);
+  font-size: 8px;
+  font-weight: 300;
+  color: rgba(240, 240, 240, 0.25);
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.export-guide-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 8px 0;
+}
+
+.export-guide-mods {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.export-guide-mod {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.export-guide-mod-name {
+  font-family: var(--font);
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(240, 240, 240, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-guide-mod-cat {
+  font-family: var(--font);
+  font-size: 6px;
+  font-weight: 400;
+  color: rgba(240, 240, 240, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.export-guide-status-label {
+  font-family: var(--font);
+  font-size: 6px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.export-guide-status-label .sg-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.export-guide-footer {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font);
+  font-size: 5px;
+  font-weight: 400;
+  color: rgba(240, 240, 240, 0.15);
+  letter-spacing: 0.04em;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 /* Desktop enhancement */

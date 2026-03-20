@@ -518,6 +518,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     exportImgOffset = { x: 0, y: 0 };
     exportPreviewImg.src = carImage;
     exportPreviewImg.style.transform = 'translate(0px, 0px)';
+    populateExportGuide();
     exportModal.classList.add('open');
 
     // Once image loads, calculate drag bounds
@@ -534,6 +535,30 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     generateExport(0, 0, tab);
   }
 });
+function populateExportGuide() {
+  const installed = mods.filter(m => m.status === 'installed').length;
+  document.getElementById('exportGuideSub').textContent = `${mods.length} mods · ${installed} installed`;
+  document.getElementById('exportGuideDate').textContent =
+    new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const modsEl = document.getElementById('exportGuideMods');
+  const groups = [
+    { label: 'INSTALLED', status: 'installed', color: '#22C55E' },
+    { label: 'ORDERED', status: 'ordered', color: '#3B82F6' },
+    { label: 'PLANNED', status: 'planned', color: '#F59E0B' }
+  ];
+
+  let html = '';
+  for (const g of groups) {
+    const groupMods = mods.filter(m => m.status === g.status);
+    if (!groupMods.length) continue;
+    html += `<div class="export-guide-status-label" style="color:${g.color}"><span class="sg-dot" style="background:${g.color}"></span>${g.label}</div>`;
+    for (const mod of groupMods) {
+      html += `<div class="export-guide-mod"><div class="export-guide-mod-name">${esc(mod.name)}</div><div class="export-guide-mod-cat">${mod.category}</div></div>`;
+    }
+  }
+  modsEl.innerHTML = html;
+}
 
 function calcExportBounds() {
   const vpW = exportViewport.clientWidth;

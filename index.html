@@ -166,6 +166,20 @@
       <div class="export-hint">Drag to reposition</div>
       <div class="export-preview-viewport" id="exportViewport">
         <img id="exportPreviewImg" src="" alt="Car preview" draggable="false" />
+        <!-- Export template overlay -->
+        <div class="export-guide">
+          <div class="export-guide-gradient"></div>
+          <div class="export-guide-content">
+            <div class="export-guide-title">MY BUILD</div>
+            <div class="export-guide-sub" id="exportGuideSub">0 mods</div>
+            <div class="export-guide-divider"></div>
+            <div class="export-guide-mods" id="exportGuideMods"></div>
+            <div class="export-guide-footer">
+              <span>BUILT WITH GARAGE</span>
+              <span id="exportGuideDate"></span>
+            </div>
+          </div>
+        </div>
       </div>
       <button class="btn-save" id="generateExportBtn">Generate Build Sheet</button>
       <div class="modal-actions">
