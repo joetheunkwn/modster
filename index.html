@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Garage — Build Planner</title>
+  <meta name="description" content="Plan and track car modifications with a premium build planner." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Car Background -->
+  <div class="car-bg empty" id="carBg"></div>
+
+  <!-- App Shell -->
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="header-logo">Garage <span>/ Build</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn" id="uploadBtn" title="Upload car image">📷</button>
+      </div>
+    </header>
+
+    <!-- ═══ HOME SCREEN ═══ -->
+    <main class="screen active" id="screen-home">
+
+      <!-- Empty state (no car image) -->
+      <div id="uploadZone" class="upload-zone" style="display:none;">
+        <div class="upload-icon">📷</div>
+        <div class="upload-title">Upload your car</div>
+        <div class="upload-sub">Choose a photo to start building</div>
+      </div>
+
+      <!-- Build Panel -->
+      <div class="build-panel" id="buildPanel">
+        <div class="build-header">
+          <div class="build-title">My Build</div>
+          <div class="build-count" id="buildCount">0 mods</div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap" id="progressWrap" style="display:none;">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+          </div>
+          <div class="progress-label">
+            <span id="progressText">0% installed</span>
+            <span id="progressNums">0 / 0</span>
+          </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="filter-bar" id="filterBar"></div>
+
+        <!-- Mod List -->
+        <div class="mod-list" id="modList">
+          <div class="build-empty" id="buildEmpty">
+            <div class="empty-icon">🔧</div>
+            Start your build<br>Tap + to add your first mod
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ═══ GARAGE SCREEN ═══ -->
+    <main class="screen" id="screen-garage">
+      <div class="garage-header">
+        <div class="garage-title">Your<br><span>Garage</span></div>
+      </div>
+
+      <div id="garageContent">
+        <!-- Filled dynamically -->
+      </div>
+
+      <button class="garage-upload-btn" id="garageUploadBtn">
+        📷 Change Car Photo
+      </button>
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <button class="nav-item active" data-screen="home">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-item" data-screen="add">
+          <span class="nav-icon">＋</span>
+          <span class="nav-label">Add Mod</span>
+        </button>
+        <button class="nav-item" data-screen="garage">
+          <span class="nav-icon">🚗</span>
+          <span class="nav-label">Garage</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ═══ ADD MOD MODAL ═══ -->
+  <div class="modal-overlay" id="addModModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add Modification</div>
+
+      <div class="field">
+        <label>Mod Name</label>
+        <input type="text" id="modNameInput" placeholder="e.g. Apex ARC-8 Wheels" />
+      </div>
+
+      <div class="field">
+        <label>Category</label>
+        <select id="modCategoryInput">
+          <option value="Wheels">Wheels</option>
+          <option value="Aero">Aero</option>
+          <option value="Engine">Engine</option>
+          <option value="Exhaust">Exhaust</option>
+          <option value="Suspension">Suspension</option>
+          <option value="Brakes">Brakes</option>
+          <option value="Interior">Interior</option>
+          <option value="Exterior">Exterior</option>
+          <option value="Lighting">Lighting</option>
+          <option value="Audio">Audio</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Status</label>
+        <div class="status-selector" id="statusSelector">
+          <div class="status-option selected" data-status="planned">
+            <div class="status-dot"></div>
+            <div class="status-text">Planned</div>
+          </div>
+          <div class="status-option" data-status="ordered">
+            <div class="status-dot"></div>
+            <div class="status-text">Ordered</div>
+          </div>
+          <div class="status-option" data-status="installed">
+            <div class="status-dot"></div>
+            <div class="status-text">Installed</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-save" id="saveModBtn">Save Mod</button>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="cancelModBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="fileInput" accept="image/*" style="display:none;" />
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
