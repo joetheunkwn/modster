@@ -158,6 +158,22 @@
     </div>
   </div>
 
+  <!-- ═══ EXPORT PREVIEW MODAL ═══ -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal export-modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Position Your Image</div>
+      <div class="export-hint">Drag to reposition</div>
+      <div class="export-preview-viewport" id="exportViewport">
+        <img id="exportPreviewImg" src="" alt="Car preview" draggable="false" />
+      </div>
+      <button class="btn-save" id="generateExportBtn">Generate Build Sheet</button>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="cancelExportBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden file input -->
   <input type="file" id="fileInput" accept="image/*" style="display:none;" />
 

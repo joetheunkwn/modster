@@ -816,6 +816,46 @@ body::before {
 
 .toast.show { transform: translateX(-50%) translateY(0); }
 
+/* Export Preview Modal */
+.export-modal {
+  max-width: 380px;
+}
+
+.export-hint {
+  font-size: 11px;
+  color: var(--white-muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.export-preview-viewport {
+  width: 100%;
+  aspect-ratio: 9 / 10;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  margin-bottom: 16px;
+  touch-action: none;
+  user-select: none;
+}
+
+.export-preview-viewport:active {
+  cursor: grabbing;
+}
+
+.export-preview-viewport img {
+  position: absolute;
+  width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  will-change: transform;
+}
+
 /* Desktop enhancement */
 @media (min-width: 600px) {
   .app {

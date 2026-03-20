@@ -497,16 +497,127 @@ function renderGarage() {
 }
 
 /* ══════════════════════════════════════════════
-   EXPORT — 9:16 Build Sheet (1080×1920)
+   EXPORT — 9:16 Build Sheet with Image Positioning
    ══════════════════════════════════════════════ */
-document.getElementById('exportBtn').addEventListener('click', exportBuild);
+const exportModal = document.getElementById('exportModal');
+const exportViewport = document.getElementById('exportViewport');
+const exportPreviewImg = document.getElementById('exportPreviewImg');
 
-async function exportBuild() {
+let exportImgOffset = { x: 0, y: 0 };
+let exportDragStart = null;
+let exportImgBounds = null; // { maxX, minX, maxY, minY }
+
+document.getElementById('exportBtn').addEventListener('click', () => {
   if (mods.length === 0 && !carImage) {
     showToast('Add mods or a car photo first');
     return;
   }
 
+  if (carImage) {
+    // Show positioning modal
+    exportImgOffset = { x: 0, y: 0 };
+    exportPreviewImg.src = carImage;
+    exportPreviewImg.style.transform = 'translate(0px, 0px)';
+    exportModal.classList.add('open');
+
+    // Once image loads, calculate drag bounds
+    exportPreviewImg.onload = () => {
+      calcExportBounds();
+    };
+    // If already cached
+    if (exportPreviewImg.complete && exportPreviewImg.naturalWidth) {
+      calcExportBounds();
+    }
+  } else {
+    // No car image — skip positioning, generate directly
+    generateExport(0, 0);
+  }
+});
+
+function calcExportBounds() {
+  const vpW = exportViewport.clientWidth;
+  const vpH = exportViewport.clientHeight;
+  const imgNatW = exportPreviewImg.naturalWidth;
+  const imgNatH = exportPreviewImg.naturalHeight;
+
+  // Image is set to width:100%, so displayed width = vpW
+  const dispW = vpW;
+  const dispH = (imgNatH / imgNatW) * vpW;
+
+  // Can pan horizontally if image is wider than viewport (shouldn't be, since width:100%)
+  // Can pan vertically if image is taller than viewport
+  const maxPanX = Math.max(0, (dispW - vpW) / 2);
+  const maxPanY = Math.max(0, (dispH - vpH));
+
+  exportImgBounds = {
+    minX: -maxPanX,
+    maxX: maxPanX,
+    minY: -maxPanY,
+    maxY: 0
+  };
+}
+
+// ── Mouse drag
+exportViewport.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  exportDragStart = { x: e.clientX - exportImgOffset.x, y: e.clientY - exportImgOffset.y };
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!exportDragStart) return;
+  let nx = e.clientX - exportDragStart.x;
+  let ny = e.clientY - exportDragStart.y;
+  if (exportImgBounds) {
+    nx = Math.max(exportImgBounds.minX, Math.min(exportImgBounds.maxX, nx));
+    ny = Math.max(exportImgBounds.minY, Math.min(exportImgBounds.maxY, ny));
+  }
+  exportImgOffset = { x: nx, y: ny };
+  exportPreviewImg.style.transform = `translate(${nx}px, ${ny}px)`;
+});
+
+document.addEventListener('mouseup', () => { exportDragStart = null; });
+
+// ── Touch drag
+exportViewport.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  exportDragStart = { x: t.clientX - exportImgOffset.x, y: t.clientY - exportImgOffset.y };
+}, { passive: true });
+
+exportViewport.addEventListener('touchmove', (e) => {
+  if (!exportDragStart) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  let nx = t.clientX - exportDragStart.x;
+  let ny = t.clientY - exportDragStart.y;
+  if (exportImgBounds) {
+    nx = Math.max(exportImgBounds.minX, Math.min(exportImgBounds.maxX, nx));
+    ny = Math.max(exportImgBounds.minY, Math.min(exportImgBounds.maxY, ny));
+  }
+  exportImgOffset = { x: nx, y: ny };
+  exportPreviewImg.style.transform = `translate(${nx}px, ${ny}px)`;
+}, { passive: false });
+
+exportViewport.addEventListener('touchend', () => { exportDragStart = null; }, { passive: true });
+
+// ── Modal controls
+document.getElementById('cancelExportBtn').addEventListener('click', closeExportModal);
+exportModal.addEventListener('click', (e) => { if (e.target === exportModal) closeExportModal(); });
+
+function closeExportModal() {
+  exportModal.classList.remove('open');
+}
+
+document.getElementById('generateExportBtn').addEventListener('click', () => {
+  // Convert pixel offset from preview into a ratio
+  const vpW = exportViewport.clientWidth;
+  const vpH = exportViewport.clientHeight;
+  const ratioX = vpW > 0 ? exportImgOffset.x / vpW : 0;
+  const ratioY = vpH > 0 ? exportImgOffset.y / vpH : 0;
+  closeExportModal();
+  generateExport(ratioX, ratioY);
+});
+
+async function generateExport(offsetRatioX, offsetRatioY) {
   showToast('Generating build sheet...');
 
   const W = 1080;
@@ -522,7 +633,7 @@ async function exportBuild() {
 
   let imageBottom = 0;
 
-  // ── Car Image (top portion)
+  // ── Car Image (top portion) with user-defined offset
   if (carImage) {
     try {
       const img = await loadImage(carImage);
@@ -530,8 +641,11 @@ async function exportBuild() {
       const scale = Math.max(W / img.width, targetH / img.height);
       const drawW = img.width * scale;
       const drawH = img.height * scale;
-      const dx = (W - drawW) / 2;
-      const dy = (targetH - drawH) / 2;
+
+      // Center + apply user offset (ratio × canvas width for proportional mapping)
+      const dx = (W - drawW) / 2 + (offsetRatioX * W);
+      const baseY = (targetH - drawH) / 2;
+      const dy = baseY + (offsetRatioY * targetH);
 
       ctx.save();
       ctx.beginPath();
@@ -590,7 +704,6 @@ async function exportBuild() {
     const groupMods = mods.filter(m => m.status === group.status);
     if (groupMods.length === 0) continue;
 
-    // Check if we have room — leave space for footer
     if (y > H - 160) break;
 
     // Status label
@@ -638,25 +751,21 @@ async function exportBuild() {
   ctx.font = '400 16px Inter, sans-serif';
   ctx.fillText('BUILT WITH GARAGE', 60, H - 60);
 
-  // Date
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateW = ctx.measureText(today).width;
   ctx.fillText(today, W - 60 - dateW, H - 60);
 
-  // ── Download
+  // ── Open in new tab (for easy save to camera roll)
   try {
-    canvas.toBlob((blob) => {
-      if (!blob) { showToast('Export failed'); return; }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'build-sheet.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      showToast('Build sheet exported');
-    }, 'image/png');
+    const dataUrl = canvas.toDataURL('image/png');
+    const tab = window.open('', '_blank');
+    if (tab) {
+      tab.document.write(`<!DOCTYPE html><html><head><title>Build Sheet</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a0a;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh;display:block}</style></head><body><img src="${dataUrl}" alt="Build Sheet" /></body></html>`);
+      tab.document.close();
+      showToast('Build sheet opened — long press to save');
+    } else {
+      showToast('Allow popups to export');
+    }
   } catch (e) {
     showToast('Export failed');
   }
