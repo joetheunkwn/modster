@@ -4,10 +4,16 @@
    ══════════════════════════════════════════════ */
 
 /* ── State ── */
-let mods = [];
-let carImage = null;
+let builds = [];
+let activeBuildId = null;
+let activeBuild = null;
+
 let activeFilter = 'all';
 let dragIdx = null;
+
+function updateActiveRef() {
+  activeBuild = builds.find(b => b.id === activeBuildId) || null;
+}
 
 /* ══════════════════════════════════════════════
    INDEXEDDB — Persistent Storage
@@ -49,23 +55,71 @@ async function dbSet(key, value) {
 }
 
 /* ── Save / Load ── */
+async function saveAll() {
+  await dbSet('builds', builds);
+  await dbSet('activeBuildId', activeBuildId);
+}
+
 async function saveMods() {
-  await dbSet('mods', mods);
+  if (activeBuild) await saveAll();
 }
 
 async function saveCarImage(base64) {
-  carImage = base64;
-  await dbSet('carImage', base64);
+  if (!activeBuild) {
+    const b = {
+      id: Date.now(),
+      name: 'New Build',
+      year: '',
+      make: '',
+      model: '',
+      image: base64,
+      mods: []
+    };
+    builds.push(b);
+    activeBuildId = b.id;
+    updateActiveRef();
+  } else {
+    activeBuild.image = base64;
+  }
+  await saveAll();
 }
 
 async function loadData() {
-  const [savedMods, savedImage] = await Promise.all([
-    dbGet('mods'),
-    dbGet('carImage')
+  const [savedBuilds, savedActiveId] = await Promise.all([
+    dbGet('builds'),
+    dbGet('activeBuildId')
   ]);
-  mods = savedMods || [];
-  carImage = savedImage || null;
+
+  if (savedBuilds && savedBuilds.length > 0) {
+    builds = savedBuilds;
+    activeBuildId = savedActiveId || builds[0].id;
+  } else {
+    // V1 Migration
+    const [savedMods, savedImage] = await Promise.all([
+      dbGet('mods'),
+      dbGet('carImage')
+    ]);
+    
+    if (savedMods || savedImage) {
+      const b = {
+        id: Date.now(),
+        name: 'My Build',
+        year: '', make: '', model: '',
+        image: savedImage || null,
+        mods: savedMods || []
+      };
+      builds = [b];
+      activeBuildId = b.id;
+      await saveAll();
+    } else {
+      builds = [];
+      activeBuildId = null;
+    }
+  }
+
+  updateActiveRef();
   applyCarImage();
+  updateHeaderName();
   renderMods();
   renderGarage();
   updateUploadZone();
@@ -155,8 +209,8 @@ function openAddModal(modId) {
   const nameInput = document.getElementById('modNameInput');
   const catInput = document.getElementById('modCategoryInput');
 
-  if (editingModId) {
-    const mod = mods.find(m => m.id === editingModId);
+  if (editingModId && activeBuild) {
+    const mod = activeBuild.mods.find(m => m.id === editingModId);
     if (mod) {
       nameInput.value = mod.name;
       catInput.value = mod.category;
@@ -212,8 +266,10 @@ document.getElementById('saveModBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (!activeBuild) return;
+
   if (editingModId) {
-    const mod = mods.find(m => m.id === editingModId);
+    const mod = activeBuild.mods.find(m => m.id === editingModId);
     if (mod) {
       mod.name = name;
       mod.category = category;
@@ -221,7 +277,7 @@ document.getElementById('saveModBtn').addEventListener('click', async () => {
     }
     showToast('Mod updated');
   } else {
-    mods.push({
+    activeBuild.mods.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name,
       category,
@@ -253,6 +309,9 @@ const WRENCH_SVG = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" 
 const CAMERA_SVG = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
 
 function renderMods() {
+  if (!activeBuild) return;
+  const mods = activeBuild.mods;
+
   // Build count
   document.getElementById('buildCount').textContent = mods.length + (mods.length === 1 ? ' mod' : ' mods');
 
@@ -329,9 +388,10 @@ function renderMods() {
 }
 
 function renderFilters() {
+  if (!activeBuild) return;
   const bar = document.getElementById('filterBar');
   // Only show categories that have mods
-  const usedCats = new Set(mods.map(m => m.category));
+  const usedCats = new Set(activeBuild.mods.map(m => m.category));
   const showCats = CATEGORIES.filter(c => c === 'All' || usedCats.has(c));
 
   if (showCats.length <= 2) {
@@ -354,7 +414,8 @@ function setFilter(cat) {
 const STATUS_CYCLE = ['planned', 'ordered', 'installed'];
 
 async function cycleStatus(id) {
-  const mod = mods.find(m => m.id === id);
+  if (!activeBuild) return;
+  const mod = activeBuild.mods.find(m => m.id === id);
   if (!mod) return;
   const idx = STATUS_CYCLE.indexOf(mod.status);
   mod.status = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
@@ -364,7 +425,8 @@ async function cycleStatus(id) {
 
 /* ── Delete Mod ── */
 async function deleteMod(id) {
-  mods = mods.filter(m => m.id !== id);
+  if (!activeBuild) return;
+  activeBuild.mods = activeBuild.mods.filter(m => m.id !== id);
   await saveMods();
   renderMods();
   showToast('Mod removed');
@@ -399,21 +461,22 @@ function setupDrag() {
       if (dragIdx === null || dragIdx === dropIdx) return;
 
       // Get filtered list to map back to original indices
+      if (!activeBuild) return;
       const filtered = activeFilter === 'all'
-        ? mods
-        : mods.filter(m => m.category.toLowerCase() === activeFilter);
+        ? activeBuild.mods
+        : activeBuild.mods.filter(m => m.category.toLowerCase() === activeFilter);
 
       const dragMod = filtered[dragIdx];
       const dropMod = filtered[dropIdx];
 
       if (!dragMod || !dropMod) return;
 
-      const origDragIdx = mods.indexOf(dragMod);
-      const origDropIdx = mods.indexOf(dropMod);
+      const origDragIdx = activeBuild.mods.indexOf(dragMod);
+      const origDropIdx = activeBuild.mods.indexOf(dropMod);
 
       // Reorder in original array
-      mods.splice(origDragIdx, 1);
-      mods.splice(origDropIdx, 0, dragMod);
+      activeBuild.mods.splice(origDragIdx, 1);
+      activeBuild.mods.splice(origDropIdx, 0, dragMod);
 
       await saveMods();
       renderMods();
@@ -447,14 +510,14 @@ function setupDrag() {
     const diff = endY - touchStartY;
     const itemH = touchItem.offsetHeight + 6;
 
-    if (Math.abs(diff) > itemH * 0.5) {
+    if (Math.abs(diff) > itemH * 0.5 && activeBuild) {
       const fromIdx = parseInt(touchItem.dataset.idx);
       const moveBy = Math.round(diff / itemH);
-      const toIdx = Math.max(0, Math.min(mods.length - 1, fromIdx + moveBy));
+      const toIdx = Math.max(0, Math.min(activeBuild.mods.length - 1, fromIdx + moveBy));
 
       if (fromIdx !== toIdx) {
-        const [moved] = mods.splice(fromIdx, 1);
-        mods.splice(toIdx, 0, moved);
+        const [moved] = activeBuild.mods.splice(fromIdx, 1);
+        activeBuild.mods.splice(toIdx, 0, moved);
         await saveMods();
         renderMods();
       }
@@ -464,37 +527,84 @@ function setupDrag() {
   });
 }
 
+function updateHeaderName() {
+  const el = document.getElementById('headerBuildName');
+  if (!el) return;
+  if (!activeBuild) {
+    el.innerHTML = `Garage <span>/ Build</span>`;
+    return;
+  }
+  const title = activeBuild.name || 
+    [activeBuild.year, activeBuild.make, activeBuild.model].filter(Boolean).join(' ') || 
+    'My Build';
+  el.innerHTML = `${esc(title)}`;
+}
+
 /* ══════════════════════════════════════════════
    GARAGE SCREEN
    ══════════════════════════════════════════════ */
 function renderGarage() {
   const container = document.getElementById('garageContent');
 
-  if (!carImage) {
+  if (builds.length === 0) {
     container.innerHTML = `
       <div class="upload-zone" onclick="triggerUpload()">
         <div class="upload-icon">${CAMERA_SVG}</div>
-        <div class="upload-title">No car yet</div>
-        <div class="upload-sub">Upload a photo to get started</div>
+        <div class="upload-title">No builds yet</div>
+        <div class="upload-sub">Upload a photo to start your first build</div>
       </div>`;
     return;
   }
 
-  const installed = mods.filter(m => m.status === 'installed').length;
-  const planned = mods.filter(m => m.status === 'planned').length;
-  const ordered = mods.filter(m => m.status === 'ordered').length;
-
-  container.innerHTML = `
-    <div class="garage-car-card">
-      <img class="garage-car-image" src="${carImage}" alt="My car" />
-      <div class="garage-car-info">
-        <div class="garage-car-name">Current Build</div>
-        <div class="garage-car-stats">
-          ${mods.length} mods · ${installed} installed · ${ordered} ordered · ${planned} planned
+  let html = `<div class="garage-builds-list">`;
+  
+  builds.forEach(b => {
+    const installed = b.mods.filter(m => m.status === 'installed').length;
+    const isCurrent = b.id === activeBuildId;
+    const title = b.name || [b.year, b.make, b.model].filter(Boolean).join(' ') || 'My Build';
+    
+    html += `
+      <div class="garage-car-card" style="border-color: ${isCurrent ? 'var(--accent)' : 'var(--glass-border)'}">
+        ${b.image ? `<img class="garage-car-image" src="${b.image}" alt="${esc(title)}" onclick="selectBuild(${b.id})" style="cursor:pointer" />` 
+                  : `<div class="garage-car-image" style="display:flex;align-items:center;justify-content:center;color:var(--white-muted);cursor:pointer;" onclick="selectBuild(${b.id})">No Photo</div>`}
+        <div class="garage-car-info">
+          <div class="garage-build-header">
+            <div>
+              <div class="garage-car-name" onclick="selectBuild(${b.id})" style="cursor:pointer">${esc(title)}</div>
+              <div class="garage-car-stats">
+                ${b.mods.length} mods · ${installed} installed
+              </div>
+            </div>
+            <button class="garage-build-edit-btn" onclick="openEditBuild(${b.id})">Edit</button>
+          </div>
         </div>
-      </div>
-    </div>`;
+      </div>`;
+  });
+
+  html += `</div>
+    <button class="garage-add-btn" onclick="triggerUpload()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add New Build
+    </button>`;
+  
+  container.innerHTML = html;
 }
+
+function selectBuild(id) {
+  activeBuildId = id;
+  updateActiveRef();
+  saveAll();
+  
+  applyCarImage();
+  updateHeaderName();
+  renderMods();
+  renderGarage();
+  
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-home').classList.add('active');
+  setActiveNav('home');
+}
+
 
 /* ══════════════════════════════════════════════
    EXPORT — 9:16 Build Sheet with Image Positioning
@@ -508,15 +618,17 @@ let exportDragStart = null;
 let exportImgBounds = null; // { maxX, minX, maxY, minY }
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  if (mods.length === 0 && !carImage) {
+  if (!activeBuild) return;
+  
+  if (activeBuild.mods.length === 0 && !activeBuild.image) {
     showToast('Add mods or a car photo first');
     return;
   }
 
-  if (carImage) {
+  if (activeBuild.image) {
     // Show positioning modal
     exportImgOffset = { x: 0, y: 0 };
-    exportPreviewImg.src = carImage;
+    exportPreviewImg.src = activeBuild.image;
     exportPreviewImg.style.transform = 'translate(0px, 0px)';
     populateExportGuide();
     exportModal.classList.add('open');
@@ -536,10 +648,17 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   }
 });
 function populateExportGuide() {
+  if (!activeBuild) return;
+  const mods = activeBuild.mods;
   const installed = mods.filter(m => m.status === 'installed').length;
   document.getElementById('exportGuideSub').textContent = `${mods.length} mods · ${installed} installed`;
   document.getElementById('exportGuideDate').textContent =
     new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const titleEl = document.querySelector('.export-guide-title');
+  if (titleEl) {
+    titleEl.textContent = activeBuild.name || [activeBuild.year, activeBuild.make, activeBuild.model].filter(Boolean).join(' ').toUpperCase() || 'MY BUILD';
+  }
 
   const modsEl = document.getElementById('exportGuideMods');
   const groups = [
@@ -730,11 +849,13 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   let y = imageBottom + 10;
   ctx.fillStyle = '#F0F0F0';
   ctx.font = '700 52px Inter, sans-serif';
-  ctx.fillText('MY BUILD', 60, y);
+  const title = activeBuild.name || [activeBuild.year, activeBuild.make, activeBuild.model].filter(Boolean).join(' ').toUpperCase() || 'MY BUILD';
+  ctx.fillText(title, 60, y);
 
   ctx.fillStyle = 'rgba(240,240,240,0.35)';
   ctx.font = '300 24px Inter, sans-serif';
   y += 36;
+  const mods = activeBuild.mods;
   const installed = mods.filter(m => m.status === 'installed').length;
   ctx.fillText(`${mods.length} mods · ${installed} installed`, 60, y);
 
@@ -752,7 +873,7 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   ];
 
   for (const group of groups) {
-    const groupMods = mods.filter(m => m.status === group.status);
+    const groupMods = activeBuild.mods.filter(m => m.status === group.status);
     if (groupMods.length === 0) continue;
 
     if (y > H - 160) break;
@@ -844,6 +965,122 @@ function showToast(msg) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2000);
 }
+
+/* ══════════════════════════════════════════════
+   EDIT BUILD MODAL
+   ══════════════════════════════════════════════ */
+const editBuildModal = document.getElementById('editBuildModal');
+let editingBuildId = null;
+let pendingBuildPhoto = null;
+
+function openEditBuild(id) {
+  const b = builds.find(x => x.id === id);
+  if (!b) return;
+
+  editingBuildId = b.id;
+  document.getElementById('buildNameInput').value = b.name || '';
+  document.getElementById('buildYearInput').value = b.year || '';
+  document.getElementById('buildMakeInput').value = b.make || '';
+  document.getElementById('buildModelInput').value = b.model || '';
+
+  pendingBuildPhoto = b.image;
+  updateEditPhotoPreview();
+
+  // Show delete only if > 1 build
+  const delBtn = document.getElementById('deleteBuildBtn');
+  if (builds.length > 1) {
+    delBtn.style.display = 'block';
+  } else {
+    delBtn.style.display = 'none';
+  }
+
+  editBuildModal.classList.add('open');
+}
+
+function closeEditBuild() {
+  editBuildModal.classList.remove('open');
+  editingBuildId = null;
+  pendingBuildPhoto = null;
+}
+
+function updateEditPhotoPreview() {
+  const preview = document.getElementById('editBuildPhotoPreview');
+  if (pendingBuildPhoto) {
+    preview.style.display = 'block';
+    preview.style.backgroundImage = `url(${pendingBuildPhoto})`;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+// ── Handle photo change within edit modal
+const editPhotoInput = document.createElement('input');
+editPhotoInput.type = 'file';
+editPhotoInput.accept = 'image/*';
+editPhotoInput.style.display = 'none';
+document.body.appendChild(editPhotoInput);
+
+document.getElementById('editBuildPhotoBtn').addEventListener('click', () => {
+  editPhotoInput.click();
+});
+
+editPhotoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    pendingBuildPhoto = ev.target.result;
+    updateEditPhotoPreview();
+  };
+  reader.readAsDataURL(file);
+  editPhotoInput.value = '';
+});
+
+// ── Save build info
+document.getElementById('saveBuildBtn').addEventListener('click', async () => {
+  if (!editingBuildId) return;
+  const b = builds.find(x => x.id === editingBuildId);
+  if (!b) return;
+
+  b.name = document.getElementById('buildNameInput').value.trim();
+  b.year = document.getElementById('buildYearInput').value.trim();
+  b.make = document.getElementById('buildMakeInput').value.trim();
+  b.model = document.getElementById('buildModelInput').value.trim();
+  b.image = pendingBuildPhoto;
+
+  await saveAll();
+  showToast('Build updated');
+  closeEditBuild();
+  updateActiveRef();
+  applyCarImage();
+  updateHeaderName();
+  renderGarage();
+});
+
+// ── Delete build
+document.getElementById('deleteBuildBtn').addEventListener('click', async () => {
+  if (builds.length <= 1) return; // safety
+  if (!confirm('Delete this build completely?')) return;
+
+  builds = builds.filter(x => x.id !== editingBuildId);
+  if (activeBuildId === editingBuildId) {
+    activeBuildId = builds[0].id;
+  }
+  
+  await saveAll();
+  showToast('Build deleted');
+  closeEditBuild();
+  updateActiveRef();
+  applyCarImage();
+  updateHeaderName();
+  renderGarage();
+  renderMods();
+});
+
+document.getElementById('cancelBuildBtn').addEventListener('click', closeEditBuild);
+editBuildModal.addEventListener('click', (e) => {
+  if (e.target === editBuildModal) closeEditBuild();
+});
 
 /* ══════════════════════════════════════════════
    INIT

@@ -20,7 +20,7 @@
     <!-- Header -->
     <header class="header">
       <div class="header-brand">
-        <div class="header-logo">Garage <span>/ Build</span></div>
+        <div class="header-logo" id="headerBuildName">Garage <span>/ Build</span></div>
       </div>
       <div class="header-actions">
         <button class="header-btn" id="uploadBtn" title="Upload car image"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
@@ -184,6 +184,49 @@
       <button class="btn-save" id="generateExportBtn">Generate Build Sheet</button>
       <div class="modal-actions">
         <button class="btn-cancel" id="cancelExportBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ EDIT BUILD MODAL ═══ -->
+  <div class="modal-overlay" id="editBuildModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Build Settings</div>
+
+      <div class="field">
+        <label>Build Name</label>
+        <input type="text" id="buildNameInput" placeholder="e.g. Track Toy" />
+      </div>
+      
+      <div class="form-row">
+        <div class="field">
+          <label>Year</label>
+          <input type="text" id="buildYearInput" placeholder="2019" />
+        </div>
+        <div class="field">
+          <label>Make</label>
+          <input type="text" id="buildMakeInput" placeholder="Porsche" />
+        </div>
+      </div>
+      
+      <div class="field">
+        <label>Model</label>
+        <input type="text" id="buildModelInput" placeholder="911 GT3 RS" />
+      </div>
+
+      <div class="field">
+        <label>Car Photo</label>
+        <button class="modal-upload-btn" id="editBuildPhotoBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Change Photo
+        </button>
+        <div class="edit-build-photo-preview" id="editBuildPhotoPreview" style="display:none;"></div>
+      </div>
+
+      <button class="btn-save" id="saveBuildBtn">Save Build</button>
+      <div class="modal-actions" style="display:flex; justify-content:space-between; width:100%;">
+        <button class="btn-cancel" id="cancelBuildBtn">Cancel</button>
+        <button class="btn-danger" id="deleteBuildBtn" style="display:none;">Delete</button>
       </div>
     </div>
   </div>
