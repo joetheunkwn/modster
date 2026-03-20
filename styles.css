@@ -848,9 +848,8 @@ body::before {
 
 .export-preview-viewport img {
   position: absolute;
-  width: 100%;
-  min-height: 100%;
-  object-fit: cover;
+  top: 0;
+  left: 0;
   user-select: none;
   pointer-events: none;
   will-change: transform;

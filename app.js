@@ -566,21 +566,41 @@ function calcExportBounds() {
   const imgNatW = exportPreviewImg.naturalWidth;
   const imgNatH = exportPreviewImg.naturalHeight;
 
-  // Image is set to width:100%, so displayed width = vpW
-  const dispW = vpW;
-  const dispH = (imgNatH / imgNatW) * vpW;
+  if (!imgNatW || !imgNatH) return;
 
-  // Can pan horizontally if image is wider than viewport (shouldn't be, since width:100%)
-  // Can pan vertically if image is taller than viewport
-  const maxPanX = Math.max(0, (dispW - vpW) / 2);
-  const maxPanY = Math.max(0, (dispH - vpH));
+  // The image zone is the top 42% of the 9:16 viewport (matches canvas render)
+  const zoneH = vpH * 0.42;
+  const zoneW = vpW;
+
+  // Scale image to COVER the image zone (like object-fit: cover)
+  const scale = Math.max(zoneW / imgNatW, zoneH / imgNatH);
+  const dispW = Math.round(imgNatW * scale);
+  const dispH = Math.round(imgNatH * scale);
+
+  // Apply dimensions
+  exportPreviewImg.style.width = dispW + 'px';
+  exportPreviewImg.style.height = dispH + 'px';
+
+  // Center the image initially within the zone
+  const centerX = Math.round((zoneW - dispW) / 2);
+  const centerY = Math.round((zoneH - dispH) / 2);
+  exportPreviewImg.style.left = centerX + 'px';
+  exportPreviewImg.style.top = centerY + 'px';
+
+  // Calculate drag bounds — how far the image can move from center
+  const overflowX = Math.max(0, (dispW - zoneW) / 2);
+  const overflowY = Math.max(0, (dispH - zoneH) / 2);
 
   exportImgBounds = {
-    minX: -maxPanX,
-    maxX: maxPanX,
-    minY: -maxPanY,
-    maxY: 0
+    minX: -overflowX,
+    maxX: overflowX,
+    minY: -overflowY,
+    maxY: overflowY
   };
+
+  // Reset offset and transform
+  exportImgOffset = { x: 0, y: 0 };
+  exportPreviewImg.style.transform = 'translate(0px, 0px)';
 }
 
 // ── Mouse drag
@@ -634,11 +654,13 @@ function closeExportModal() {
 }
 
 document.getElementById('generateExportBtn').addEventListener('click', () => {
-  // Convert pixel offset from preview into a ratio
+  // Convert pixel offset from preview into a ratio relative to the image zone
   const vpW = exportViewport.clientWidth;
   const vpH = exportViewport.clientHeight;
-  const ratioX = vpW > 0 ? exportImgOffset.x / vpW : 0;
-  const ratioY = vpH > 0 ? exportImgOffset.y / vpH : 0;
+  const zoneW = vpW;
+  const zoneH = vpH * 0.42;
+  const ratioX = zoneW > 0 ? exportImgOffset.x / zoneW : 0;
+  const ratioY = zoneH > 0 ? exportImgOffset.y / zoneH : 0;
   closeExportModal();
 
   // Open tab SYNCHRONOUSLY from the click event to avoid popup blocker
