@@ -288,11 +288,50 @@ body::before {
   text-transform: uppercase;
 }
 
+.build-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .build-count {
   font-size: 11px;
   font-weight: 400;
   color: var(--white-muted);
   letter-spacing: 0.05em;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--white-muted);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.export-btn:active {
+  transform: scale(0.95);
+}
+
+.export-btn svg {
+  flex-shrink: 0;
 }
 
 /* Progress bar */

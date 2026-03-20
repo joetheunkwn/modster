@@ -23,7 +23,7 @@
         <div class="header-logo">Garage <span>/ Build</span></div>
       </div>
       <div class="header-actions">
-        <button class="header-btn" id="uploadBtn" title="Upload car image">📷</button>
+        <button class="header-btn" id="uploadBtn" title="Upload car image"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
       </div>
     </header>
 
@@ -32,7 +32,7 @@
 
       <!-- Empty state (no car image) -->
       <div id="uploadZone" class="upload-zone" style="display:none;">
-        <div class="upload-icon">📷</div>
+        <div class="upload-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
         <div class="upload-title">Upload your car</div>
         <div class="upload-sub">Choose a photo to start building</div>
       </div>
@@ -41,7 +41,10 @@
       <div class="build-panel" id="buildPanel">
         <div class="build-header">
           <div class="build-title">My Build</div>
-          <div class="build-count" id="buildCount">0 mods</div>
+          <div class="build-header-right">
+            <button class="export-btn" id="exportBtn" title="Export build sheet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+            <div class="build-count" id="buildCount">0 mods</div>
+          </div>
         </div>
 
         <!-- Progress -->
@@ -61,7 +64,7 @@
         <!-- Mod List -->
         <div class="mod-list" id="modList">
           <div class="build-empty" id="buildEmpty">
-            <div class="empty-icon">🔧</div>
+            <div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
             Start your build<br>Tap + to add your first mod
           </div>
         </div>
@@ -79,7 +82,7 @@
       </div>
 
       <button class="garage-upload-btn" id="garageUploadBtn">
-        📷 Change Car Photo
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Change Car Photo
       </button>
     </main>
 
@@ -87,15 +90,15 @@
     <nav class="bottom-nav">
       <div class="bottom-nav-inner">
         <button class="nav-item active" data-screen="home">
-          <span class="nav-icon">🏠</span>
+          <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
           <span class="nav-label">Home</span>
         </button>
         <button class="nav-item" data-screen="add">
-          <span class="nav-icon">＋</span>
+          <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
           <span class="nav-label">Add Mod</span>
         </button>
         <button class="nav-item" data-screen="garage">
-          <span class="nav-icon">🚗</span>
+          <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
           <span class="nav-label">Garage</span>
         </button>
       </div>

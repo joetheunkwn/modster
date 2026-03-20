@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════
    GARAGE — App Engine
-   IndexedDB, Mod CRUD, Navigation, Drag-Reorder
+   IndexedDB, Mod CRUD, Navigation, Drag-Reorder, Export
    ══════════════════════════════════════════════ */
 
 /* ── State ── */
@@ -121,6 +121,12 @@ document.getElementById('garageUploadBtn').addEventListener('click', triggerUplo
    ══════════════════════════════════════════════ */
 const navItems = document.querySelectorAll('.nav-item');
 
+function setActiveNav(screenName) {
+  navItems.forEach(n => {
+    n.classList.toggle('active', n.dataset.screen === screenName);
+  });
+}
+
 navItems.forEach(btn => {
   btn.addEventListener('click', () => {
     const target = btn.dataset.screen;
@@ -133,9 +139,7 @@ navItems.forEach(btn => {
     // Switch screens
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-' + target).classList.add('active');
-
-    navItems.forEach(n => n.classList.remove('active'));
-    btn.classList.add('active');
+    setActiveNav(target);
   });
 });
 
@@ -174,6 +178,13 @@ function openAddModal(modId) {
 function closeAddModal() {
   addModal.classList.remove('open');
   editingModId = null;
+
+  // FIX: Reset nav highlight to whichever screen is currently visible
+  const activeScreen = document.querySelector('.screen.active');
+  if (activeScreen) {
+    const screenId = activeScreen.id.replace('screen-', '');
+    setActiveNav(screenId);
+  }
 }
 
 // Status selector
@@ -237,6 +248,10 @@ addModal.addEventListener('click', (e) => {
    ══════════════════════════════════════════════ */
 const CATEGORIES = ['All', 'Wheels', 'Aero', 'Engine', 'Exhaust', 'Suspension', 'Brakes', 'Interior', 'Exterior', 'Lighting', 'Audio', 'Other'];
 
+const SEARCH_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const WRENCH_SVG = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+const CAMERA_SVG = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+
 function renderMods() {
   // Build count
   document.getElementById('buildCount').textContent = mods.length + (mods.length === 1 ? ' mod' : ' mods');
@@ -262,26 +277,41 @@ function renderMods() {
     ? mods
     : mods.filter(m => m.category.toLowerCase() === activeFilter);
 
-  // Mod list
+  // Mod list — FIX: don't destroy buildEmpty with innerHTML
   const list = document.getElementById('modList');
   const empty = document.getElementById('buildEmpty');
 
   if (mods.length === 0) {
+    // Remove all mod-item elements but keep buildEmpty
+    list.querySelectorAll('.mod-item').forEach(el => el.remove());
+    // Also remove any no-results messages
+    list.querySelectorAll('.build-empty-dynamic').forEach(el => el.remove());
     empty.style.display = 'block';
-    list.innerHTML = '';
-    list.appendChild(empty);
     return;
   }
 
   empty.style.display = 'none';
 
+  // Remove previous dynamic elements
+  list.querySelectorAll('.mod-item').forEach(el => el.remove());
+  list.querySelectorAll('.build-empty-dynamic').forEach(el => el.remove());
+
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="build-empty"><div class="empty-icon">🔍</div>No mods in this category</div>';
+    const noResults = document.createElement('div');
+    noResults.className = 'build-empty build-empty-dynamic';
+    noResults.innerHTML = `<div class="empty-icon">${SEARCH_SVG}</div>No mods in this category`;
+    list.appendChild(noResults);
     return;
   }
 
-  list.innerHTML = filtered.map((mod, i) => `
-    <div class="mod-item" data-id="${mod.id}" data-idx="${i}" draggable="true">
+  // Build mod items
+  filtered.forEach((mod, i) => {
+    const div = document.createElement('div');
+    div.className = 'mod-item';
+    div.dataset.id = mod.id;
+    div.dataset.idx = i;
+    div.draggable = true;
+    div.innerHTML = `
       <div class="mod-grip">⠿</div>
       <div class="mod-info" onclick="openAddModal('${mod.id}')">
         <div class="mod-name">${esc(mod.name)}</div>
@@ -290,9 +320,9 @@ function renderMods() {
       <button class="mod-status ${mod.status}" onclick="cycleStatus('${mod.id}')">${mod.status}</button>
       <div class="mod-actions">
         <button class="mod-delete" onclick="deleteMod('${mod.id}')">✕</button>
-      </div>
-    </div>
-  `).join('');
+      </div>`;
+    list.appendChild(div);
+  });
 
   // Set up drag events
   setupDrag();
@@ -443,7 +473,7 @@ function renderGarage() {
   if (!carImage) {
     container.innerHTML = `
       <div class="upload-zone" onclick="triggerUpload()">
-        <div class="upload-icon">📷</div>
+        <div class="upload-icon">${CAMERA_SVG}</div>
         <div class="upload-title">No car yet</div>
         <div class="upload-sub">Upload a photo to get started</div>
       </div>`;
@@ -464,6 +494,181 @@ function renderGarage() {
         </div>
       </div>
     </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   EXPORT — 9:16 Build Sheet (1080×1920)
+   ══════════════════════════════════════════════ */
+document.getElementById('exportBtn').addEventListener('click', exportBuild);
+
+async function exportBuild() {
+  if (mods.length === 0 && !carImage) {
+    showToast('Add mods or a car photo first');
+    return;
+  }
+
+  showToast('Generating build sheet...');
+
+  const W = 1080;
+  const H = 1920;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Background
+  ctx.fillStyle = '#0A0A0A';
+  ctx.fillRect(0, 0, W, H);
+
+  let imageBottom = 0;
+
+  // ── Car Image (top portion)
+  if (carImage) {
+    try {
+      const img = await loadImage(carImage);
+      const targetH = H * 0.42;
+      const scale = Math.max(W / img.width, targetH / img.height);
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const dx = (W - drawW) / 2;
+      const dy = (targetH - drawH) / 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W, targetH);
+      ctx.clip();
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      ctx.restore();
+
+      // Gradient overlay on image bottom
+      const grad = ctx.createLinearGradient(0, targetH * 0.5, 0, targetH);
+      grad.addColorStop(0, 'rgba(10,10,10,0)');
+      grad.addColorStop(1, 'rgba(10,10,10,1)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, targetH * 0.5, W, targetH * 0.5);
+
+      imageBottom = targetH;
+    } catch (e) {
+      imageBottom = 80;
+    }
+  } else {
+    // No image — subtle gradient header
+    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+    grad.addColorStop(0, '#1a1a2e');
+    grad.addColorStop(1, '#0A0A0A');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 300);
+    imageBottom = 200;
+  }
+
+  // ── Title area
+  let y = imageBottom + 10;
+  ctx.fillStyle = '#F0F0F0';
+  ctx.font = '700 52px Inter, sans-serif';
+  ctx.fillText('MY BUILD', 60, y);
+
+  ctx.fillStyle = 'rgba(240,240,240,0.35)';
+  ctx.font = '300 24px Inter, sans-serif';
+  y += 36;
+  const installed = mods.filter(m => m.status === 'installed').length;
+  ctx.fillText(`${mods.length} mods · ${installed} installed`, 60, y);
+
+  // ── Divider line
+  y += 30;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(60, y, W - 120, 1);
+  y += 30;
+
+  // ── Mod list by status
+  const groups = [
+    { label: 'INSTALLED', status: 'installed', color: '#22C55E' },
+    { label: 'ORDERED', status: 'ordered', color: '#3B82F6' },
+    { label: 'PLANNED', status: 'planned', color: '#F59E0B' }
+  ];
+
+  for (const group of groups) {
+    const groupMods = mods.filter(m => m.status === group.status);
+    if (groupMods.length === 0) continue;
+
+    // Check if we have room — leave space for footer
+    if (y > H - 160) break;
+
+    // Status label
+    ctx.fillStyle = group.color;
+    ctx.font = '600 18px Inter, sans-serif';
+    ctx.fillText(group.label, 60, y);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(46, y - 5, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    y += 10;
+
+    for (const mod of groupMods) {
+      if (y > H - 160) break;
+
+      y += 38;
+      ctx.fillStyle = '#F0F0F0';
+      ctx.font = '500 26px Inter, sans-serif';
+
+      // Truncate long names
+      let name = mod.name;
+      while (ctx.measureText(name).width > W - 200 && name.length > 3) {
+        name = name.slice(0, -1);
+      }
+      if (name !== mod.name) name += '...';
+      ctx.fillText(name, 80, y);
+
+      // Category
+      ctx.fillStyle = 'rgba(240,240,240,0.3)';
+      ctx.font = '400 18px Inter, sans-serif';
+      y += 26;
+      ctx.fillText(mod.category.toUpperCase(), 80, y);
+    }
+
+    y += 30;
+  }
+
+  // ── Footer
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(60, H - 100, W - 120, 1);
+
+  ctx.fillStyle = 'rgba(240,240,240,0.2)';
+  ctx.font = '400 16px Inter, sans-serif';
+  ctx.fillText('BUILT WITH GARAGE', 60, H - 60);
+
+  // Date
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateW = ctx.measureText(today).width;
+  ctx.fillText(today, W - 60 - dateW, H - 60);
+
+  // ── Download
+  try {
+    canvas.toBlob((blob) => {
+      if (!blob) { showToast('Export failed'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'build-sheet.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      showToast('Build sheet exported');
+    }, 'image/png');
+  } catch (e) {
+    showToast('Export failed');
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 /* ══════════════════════════════════════════════
