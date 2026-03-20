@@ -529,8 +529,9 @@ document.getElementById('exportBtn').addEventListener('click', () => {
       calcExportBounds();
     }
   } else {
-    // No car image — skip positioning, generate directly
-    generateExport(0, 0);
+    // No car image — skip positioning, open tab synchronously then generate
+    const tab = window.open('', '_blank');
+    generateExport(0, 0, tab);
   }
 });
 
@@ -614,10 +615,13 @@ document.getElementById('generateExportBtn').addEventListener('click', () => {
   const ratioX = vpW > 0 ? exportImgOffset.x / vpW : 0;
   const ratioY = vpH > 0 ? exportImgOffset.y / vpH : 0;
   closeExportModal();
-  generateExport(ratioX, ratioY);
+
+  // Open tab SYNCHRONOUSLY from the click event to avoid popup blocker
+  const tab = window.open('', '_blank');
+  generateExport(ratioX, ratioY, tab);
 });
 
-async function generateExport(offsetRatioX, offsetRatioY) {
+async function generateExport(offsetRatioX, offsetRatioY, tab) {
   showToast('Generating build sheet...');
 
   const W = 1080;
@@ -755,11 +759,10 @@ async function generateExport(offsetRatioX, offsetRatioY) {
   const dateW = ctx.measureText(today).width;
   ctx.fillText(today, W - 60 - dateW, H - 60);
 
-  // ── Open in new tab (for easy save to camera roll)
+  // ── Write to pre-opened tab (for easy save to camera roll)
   try {
     const dataUrl = canvas.toDataURL('image/png');
-    const tab = window.open('', '_blank');
-    if (tab) {
+    if (tab && !tab.closed) {
       tab.document.write(`<!DOCTYPE html><html><head><title>Build Sheet</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a0a;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh;display:block}</style></head><body><img src="${dataUrl}" alt="Build Sheet" /></body></html>`);
       tab.document.close();
       showToast('Build sheet opened — long press to save');
