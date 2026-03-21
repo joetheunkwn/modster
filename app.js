@@ -164,6 +164,11 @@ fileInput.addEventListener('change', (e) => {
   pendingNewBuild = false;
   const file = e.target.files[0];
   if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Image must be under 10 MB');
+    fileInput.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = async (ev) => {
     try {
@@ -296,6 +301,11 @@ document.getElementById('saveModBtn').addEventListener('click', async () => {
     return;
   }
 
+  if (name.length > 100) {
+    showToast('Mod name must be 100 characters or fewer');
+    return;
+  }
+
   if (!activeBuild) return;
 
   if (editingModId) {
@@ -308,7 +318,7 @@ document.getElementById('saveModBtn').addEventListener('click', async () => {
     showToast('Mod updated');
   } else {
     activeBuild.mods.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      id: Date.now().toString(36) + crypto.getRandomValues(new Uint8Array(4)).reduce((acc, b) => acc + ('0' + b.toString(16)).slice(-2), ''),
       name,
       category,
       status: selectedStatus,
@@ -401,16 +411,40 @@ function renderMods() {
     div.dataset.id = mod.id;
     div.dataset.idx = i;
     div.draggable = true;
-    div.innerHTML = `
-      <div class="mod-grip">⠿</div>
-      <div class="mod-info" onclick="openAddModal('${mod.id}')">
-        <div class="mod-name">${esc(mod.name)}</div>
-        <div class="mod-category">${mod.category}</div>
-      </div>
-      <button class="mod-status ${mod.status}" onclick="cycleStatus('${mod.id}')">${mod.status}</button>
-      <div class="mod-actions">
-        <button class="mod-delete" onclick="deleteMod('${mod.id}')">✕</button>
-      </div>`;
+
+    const grip = document.createElement('div');
+    grip.className = 'mod-grip';
+    grip.textContent = '⠿';
+
+    const info = document.createElement('div');
+    info.className = 'mod-info';
+    info.addEventListener('click', () => openAddModal(mod.id));
+    const modName = document.createElement('div');
+    modName.className = 'mod-name';
+    modName.textContent = mod.name;
+    const modCat = document.createElement('div');
+    modCat.className = 'mod-category';
+    modCat.textContent = mod.category;
+    info.appendChild(modName);
+    info.appendChild(modCat);
+
+    const statusBtn = document.createElement('button');
+    statusBtn.className = `mod-status ${mod.status}`;
+    statusBtn.textContent = mod.status;
+    statusBtn.addEventListener('click', () => cycleStatus(mod.id));
+
+    const actions = document.createElement('div');
+    actions.className = 'mod-actions';
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'mod-delete';
+    deleteBtn.textContent = '✕';
+    deleteBtn.addEventListener('click', () => deleteMod(mod.id));
+    actions.appendChild(deleteBtn);
+
+    div.appendChild(grip);
+    div.appendChild(info);
+    div.appendChild(statusBtn);
+    div.appendChild(actions);
     frag.appendChild(div);
   });
   list.appendChild(frag);
@@ -431,10 +465,15 @@ function renderFilters() {
     return;
   }
 
-  bar.innerHTML = showCats.map(c => {
+  bar.innerHTML = '';
+  showCats.forEach(c => {
     const val = c.toLowerCase();
-    return `<button class="filter-chip${activeFilter === val ? ' active' : ''}" onclick="setFilter('${val}')">${c}</button>`;
-  }).join('');
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip' + (activeFilter === val ? ' active' : '');
+    btn.textContent = c;
+    btn.addEventListener('click', () => setFilter(val));
+    bar.appendChild(btn);
+  });
 }
 
 function setFilter(cat) {
@@ -579,49 +618,91 @@ function updateHeaderName() {
    ══════════════════════════════════════════════ */
 function renderGarage() {
   const container = document.getElementById('garageContent');
+  container.innerHTML = '';
 
   if (builds.length === 0) {
-    container.innerHTML = `
-      <div class="upload-zone" onclick="triggerUpload()">
-        <div class="upload-icon">${CAMERA_SVG}</div>
-        <div class="upload-title">No builds yet</div>
-        <div class="upload-sub">Upload a photo to start your first build</div>
-      </div>`;
+    const zone = document.createElement('div');
+    zone.className = 'upload-zone';
+    zone.addEventListener('click', triggerUpload);
+    zone.innerHTML = `<div class="upload-icon">${CAMERA_SVG}</div>`;
+    const zoneTitle = document.createElement('div');
+    zoneTitle.className = 'upload-title';
+    zoneTitle.textContent = 'No builds yet';
+    const zoneSub = document.createElement('div');
+    zoneSub.className = 'upload-sub';
+    zoneSub.textContent = 'Upload a photo to start your first build';
+    zone.appendChild(zoneTitle);
+    zone.appendChild(zoneSub);
+    container.appendChild(zone);
     return;
   }
 
-  let html = `<div class="garage-builds-list">`;
-  
+  const list = document.createElement('div');
+  list.className = 'garage-builds-list';
+
   builds.forEach(b => {
     const installed = b.mods.filter(m => m.status === 'installed').length;
     const isCurrent = b.id === activeBuildId;
     const title = b.name || [b.year, b.make, b.model].filter(Boolean).join(' ') || 'My Build';
-    
-    html += `
-      <div class="garage-car-card" style="border-color: ${isCurrent ? 'var(--accent)' : 'var(--glass-border)'}">
-        ${b.image ? `<img class="garage-car-image" src="${b.image}" alt="${esc(title)}" onclick="selectBuild(${b.id})" style="cursor:pointer" />` 
-                  : `<div class="garage-car-image" style="display:flex;align-items:center;justify-content:center;color:var(--white-muted);cursor:pointer;" onclick="selectBuild(${b.id})">No Photo</div>`}
-        <div class="garage-car-info">
-          <div class="garage-build-header">
-            <div>
-              <div class="garage-car-name" onclick="selectBuild(${b.id})" style="cursor:pointer">${esc(title)}</div>
-              <div class="garage-car-stats">
-                ${b.mods.length} mods · ${installed} installed
-              </div>
-            </div>
-            <button class="garage-build-edit-btn" onclick="openEditBuild(${b.id})">Edit</button>
-          </div>
-        </div>
-      </div>`;
+
+    const card = document.createElement('div');
+    card.className = 'garage-car-card';
+    card.style.borderColor = isCurrent ? 'var(--accent)' : 'var(--glass-border)';
+
+    if (b.image) {
+      const img = document.createElement('img');
+      img.className = 'garage-car-image';
+      img.src = b.image;
+      img.alt = title;
+      img.style.cursor = 'pointer';
+      img.addEventListener('click', () => selectBuild(b.id));
+      card.appendChild(img);
+    } else {
+      const imgPlaceholder = document.createElement('div');
+      imgPlaceholder.className = 'garage-car-image';
+      imgPlaceholder.style.cssText = 'display:flex;align-items:center;justify-content:center;color:var(--white-muted);cursor:pointer;';
+      imgPlaceholder.textContent = 'No Photo';
+      imgPlaceholder.addEventListener('click', () => selectBuild(b.id));
+      card.appendChild(imgPlaceholder);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'garage-car-info';
+
+    const header = document.createElement('div');
+    header.className = 'garage-build-header';
+
+    const nameGroup = document.createElement('div');
+    const carName = document.createElement('div');
+    carName.className = 'garage-car-name';
+    carName.textContent = title;
+    carName.style.cursor = 'pointer';
+    carName.addEventListener('click', () => selectBuild(b.id));
+    const carStats = document.createElement('div');
+    carStats.className = 'garage-car-stats';
+    carStats.textContent = `${b.mods.length} mods · ${installed} installed`;
+    nameGroup.appendChild(carName);
+    nameGroup.appendChild(carStats);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'garage-build-edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => openEditBuild(b.id));
+
+    header.appendChild(nameGroup);
+    header.appendChild(editBtn);
+    info.appendChild(header);
+    card.appendChild(info);
+    list.appendChild(card);
   });
 
-  html += `</div>
-    <button class="garage-add-btn" onclick="triggerNewBuild()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add New Build
-    </button>`;
-  
-  container.innerHTML = html;
+  const addBtn = document.createElement('button');
+  addBtn.className = 'garage-add-btn';
+  addBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add New Build`;
+  addBtn.addEventListener('click', triggerNewBuild);
+
+  container.appendChild(list);
+  container.appendChild(addBtn);
 }
 
 function selectBuild(id) {
@@ -710,7 +791,7 @@ function populateExportGuide() {
     if (!groupMods.length) continue;
     html += `<div class="export-guide-status-label" style="color:${g.color}"><span class="sg-dot" style="background:${g.color}"></span>${g.label}</div>`;
     for (const mod of groupMods) {
-      html += `<div class="export-guide-mod"><div class="export-guide-mod-name">${esc(mod.name)}</div><div class="export-guide-mod-cat">${mod.category}</div></div>`;
+      html += `<div class="export-guide-mod"><div class="export-guide-mod-name">${esc(mod.name)}</div><div class="export-guide-mod-cat">${esc(mod.category)}</div></div>`;
     }
   }
   modsEl.innerHTML = html;
@@ -1000,7 +1081,12 @@ function loadImage(src) {
    ══════════════════════════════════════════════ */
 
 function esc(s) {
-  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  return (s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function showToast(msg) {
@@ -1071,6 +1157,11 @@ document.getElementById('editBuildPhotoBtn').addEventListener('click', () => {
 editPhotoInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Image must be under 10 MB');
+    editPhotoInput.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = (ev) => {
     pendingBuildPhoto = ev.target.result;
