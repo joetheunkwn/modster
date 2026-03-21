@@ -171,6 +171,7 @@ fileInput.addEventListener('change', (e) => {
         const b = { id: Date.now(), name: 'New Build', year: '', make: '', model: '', image: ev.target.result, mods: [] };
         builds.push(b);
         activeBuildId = b.id;
+        activeFilter = 'all';
         updateActiveRef();
         await saveAll();
       } else {
@@ -187,7 +188,7 @@ fileInput.addEventListener('change', (e) => {
       applyCarImage();
       updateUploadZone();
       renderGarage();
-      showToast('Photo saved (storage may be full)');
+      showToast('Could not save photo — storage may be full');
     }
   };
   reader.readAsDataURL(file);
@@ -392,7 +393,8 @@ function renderMods() {
     return;
   }
 
-  // Build mod items
+  // Build mod items using a fragment to batch the DOM insertion
+  const frag = document.createDocumentFragment();
   filtered.forEach((mod, i) => {
     const div = document.createElement('div');
     div.className = 'mod-item';
@@ -409,8 +411,9 @@ function renderMods() {
       <div class="mod-actions">
         <button class="mod-delete" onclick="deleteMod('${mod.id}')">✕</button>
       </div>`;
-    list.appendChild(div);
+    frag.appendChild(div);
   });
+  list.appendChild(frag);
 
   // Set up drag events
   setupDrag();
@@ -515,6 +518,7 @@ function setupDrag() {
   // Touch-based drag (mobile)
   let touchItem = null;
   let touchStartY = 0;
+  let touchItemH = 0;
 
   items.forEach(item => {
     const grip = item.querySelector('.mod-grip');
@@ -523,6 +527,7 @@ function setupDrag() {
     grip.addEventListener('touchstart', (e) => {
       touchItem = item;
       touchStartY = e.touches[0].clientY;
+      touchItemH = item.offsetHeight + 6; // cache to avoid forced layout in touchend
       item.classList.add('dragging');
     }, { passive: true });
   });
@@ -537,7 +542,7 @@ function setupDrag() {
 
     const endY = e.changedTouches[0].clientY;
     const diff = endY - touchStartY;
-    const itemH = touchItem.offsetHeight + 6;
+    const itemH = touchItemH;
 
     if (Math.abs(diff) > itemH * 0.5 && activeBuild) {
       const fromIdx = parseInt(touchItem.dataset.idx);
@@ -621,9 +626,10 @@ function renderGarage() {
 
 function selectBuild(id) {
   activeBuildId = id;
+  activeFilter = 'all';
   updateActiveRef();
   saveAll();
-  
+
   applyCarImage();
   updateHeaderName();
   renderMods();
