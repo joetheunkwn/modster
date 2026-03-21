@@ -47,10 +47,12 @@ async function dbGet(key) {
 
 async function dbSet(key, value) {
   const db = await openDB();
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const tx = db.transaction('data', 'readwrite');
     tx.objectStore('data').put(value, key);
     tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   });
 }
 
@@ -132,8 +134,9 @@ const fileInput = document.getElementById('fileInput');
 const carBg = document.getElementById('carBg');
 
 function applyCarImage() {
-  if (carImage) {
-    carBg.style.backgroundImage = `url(${carImage})`;
+  const img = activeBuild?.image;
+  if (img) {
+    carBg.style.backgroundImage = `url(${img})`;
     carBg.classList.remove('empty');
   } else {
     carBg.style.backgroundImage = '';
@@ -143,7 +146,7 @@ function applyCarImage() {
 
 function updateUploadZone() {
   const zone = document.getElementById('uploadZone');
-  zone.style.display = carImage ? 'none' : 'flex';
+  zone.style.display = activeBuild?.image ? 'none' : 'flex';
 }
 
 function triggerUpload() {
@@ -155,11 +158,19 @@ fileInput.addEventListener('change', (e) => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async (ev) => {
-    await saveCarImage(ev.target.result);
-    applyCarImage();
-    updateUploadZone();
-    renderGarage();
-    showToast('Car photo updated');
+    try {
+      await saveCarImage(ev.target.result);
+      applyCarImage();
+      updateUploadZone();
+      renderGarage();
+      showToast('Car photo updated');
+    } catch (err) {
+      console.error('Failed to save photo:', err);
+      applyCarImage();
+      updateUploadZone();
+      renderGarage();
+      showToast('Photo saved (storage may be full)');
+    }
   };
   reader.readAsDataURL(file);
   fileInput.value = '';
@@ -804,9 +815,9 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   let imageBottom = 0;
 
   // ── Car Image (top portion) with user-defined offset
-  if (carImage) {
+  if (activeBuild?.image) {
     try {
-      const img = await loadImage(carImage);
+      const img = await loadImage(activeBuild.image);
       const targetH = H * 0.42;
       const scale = Math.max(W / img.width, targetH / img.height);
       const drawW = img.width * scale;
@@ -1048,8 +1059,13 @@ document.getElementById('saveBuildBtn').addEventListener('click', async () => {
   b.model = document.getElementById('buildModelInput').value.trim();
   b.image = pendingBuildPhoto;
 
-  await saveAll();
-  showToast('Build updated');
+  try {
+    await saveAll();
+    showToast('Build updated');
+  } catch (err) {
+    console.error('Failed to save build:', err);
+    showToast('Saved (storage may be full)');
+  }
   closeEditBuild();
   updateActiveRef();
   applyCarImage();
