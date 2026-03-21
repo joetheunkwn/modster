@@ -153,17 +153,35 @@ function triggerUpload() {
   fileInput.click();
 }
 
+let pendingNewBuild = false;
+function triggerNewBuild() {
+  pendingNewBuild = true;
+  fileInput.click();
+}
+
 fileInput.addEventListener('change', (e) => {
+  const isNewBuild = pendingNewBuild;
+  pendingNewBuild = false;
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async (ev) => {
     try {
-      await saveCarImage(ev.target.result);
+      if (isNewBuild) {
+        const b = { id: Date.now(), name: 'New Build', year: '', make: '', model: '', image: ev.target.result, mods: [] };
+        builds.push(b);
+        activeBuildId = b.id;
+        updateActiveRef();
+        await saveAll();
+      } else {
+        await saveCarImage(ev.target.result);
+      }
       applyCarImage();
       updateUploadZone();
+      updateHeaderName();
+      renderMods();
       renderGarage();
-      showToast('Car photo updated');
+      showToast(isNewBuild ? 'New build added' : 'Car photo updated');
     } catch (err) {
       console.error('Failed to save photo:', err);
       applyCarImage();
@@ -593,7 +611,7 @@ function renderGarage() {
   });
 
   html += `</div>
-    <button class="garage-add-btn" onclick="triggerUpload()">
+    <button class="garage-add-btn" onclick="triggerNewBuild()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add New Build
     </button>`;
