@@ -47,10 +47,12 @@ async function dbGet(key) {
 
 async function dbSet(key, value) {
   const db = await openDB();
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const tx = db.transaction('data', 'readwrite');
     tx.objectStore('data').put(value, key);
     tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   });
 }
 
@@ -156,11 +158,19 @@ fileInput.addEventListener('change', (e) => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async (ev) => {
-    await saveCarImage(ev.target.result);
-    applyCarImage();
-    updateUploadZone();
-    renderGarage();
-    showToast('Car photo updated');
+    try {
+      await saveCarImage(ev.target.result);
+      applyCarImage();
+      updateUploadZone();
+      renderGarage();
+      showToast('Car photo updated');
+    } catch (err) {
+      console.error('Failed to save photo:', err);
+      applyCarImage();
+      updateUploadZone();
+      renderGarage();
+      showToast('Photo saved (storage may be full)');
+    }
   };
   reader.readAsDataURL(file);
   fileInput.value = '';
@@ -1049,8 +1059,13 @@ document.getElementById('saveBuildBtn').addEventListener('click', async () => {
   b.model = document.getElementById('buildModelInput').value.trim();
   b.image = pendingBuildPhoto;
 
-  await saveAll();
-  showToast('Build updated');
+  try {
+    await saveAll();
+    showToast('Build updated');
+  } catch (err) {
+    console.error('Failed to save build:', err);
+    showToast('Saved (storage may be full)');
+  }
   closeEditBuild();
   updateActiveRef();
   applyCarImage();
