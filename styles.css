@@ -47,6 +47,24 @@ body {
   position: relative;
 }
 
+/* ── Touch & Performance ── */
+button,
+.nav-item,
+.upload-zone,
+.filter-chip,
+.mod-status,
+.mod-delete,
+.export-btn,
+.status-option,
+.garage-build-edit-btn,
+.garage-add-btn,
+.garage-car-name,
+.garage-car-image,
+.header-btn,
+.mod-info {
+  touch-action: manipulation;
+}
+
 /* ── Car Background ── */
 .car-bg {
   position: fixed;
