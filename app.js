@@ -132,8 +132,9 @@ const fileInput = document.getElementById('fileInput');
 const carBg = document.getElementById('carBg');
 
 function applyCarImage() {
-  if (carImage) {
-    carBg.style.backgroundImage = `url(${carImage})`;
+  const img = activeBuild?.image;
+  if (img) {
+    carBg.style.backgroundImage = `url(${img})`;
     carBg.classList.remove('empty');
   } else {
     carBg.style.backgroundImage = '';
@@ -143,7 +144,7 @@ function applyCarImage() {
 
 function updateUploadZone() {
   const zone = document.getElementById('uploadZone');
-  zone.style.display = carImage ? 'none' : 'flex';
+  zone.style.display = activeBuild?.image ? 'none' : 'flex';
 }
 
 function triggerUpload() {
@@ -804,9 +805,9 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   let imageBottom = 0;
 
   // ── Car Image (top portion) with user-defined offset
-  if (carImage) {
+  if (activeBuild?.image) {
     try {
-      const img = await loadImage(carImage);
+      const img = await loadImage(activeBuild.image);
       const targetH = H * 0.42;
       const scale = Math.max(W / img.width, targetH / img.height);
       const drawW = img.width * scale;
