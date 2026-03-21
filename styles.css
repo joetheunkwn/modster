@@ -44,6 +44,7 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   position: relative;
 }
 
@@ -571,6 +572,9 @@ body::before {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 24px;
+}
+
+.modal-overlay.open .modal {
   animation: slideUp 0.35s var(--ease);
 }
 

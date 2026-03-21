@@ -651,6 +651,8 @@ const exportPreviewImg = document.getElementById('exportPreviewImg');
 let exportImgOffset = { x: 0, y: 0 };
 let exportDragStart = null;
 let exportImgBounds = null; // { maxX, minX, maxY, minY }
+let exportZoneW = 0;
+let exportZoneH = 0;
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   if (!activeBuild) return;
@@ -668,13 +670,13 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     populateExportGuide();
     exportModal.classList.add('open');
 
-    // Once image loads, calculate drag bounds
+    // Once image loads, calculate drag bounds — delay to let modal animation settle
     exportPreviewImg.onload = () => {
-      calcExportBounds();
+      setTimeout(calcExportBounds, 400);
     };
-    // If already cached
+    // If already cached, still wait for animation to finish
     if (exportPreviewImg.complete && exportPreviewImg.naturalWidth) {
-      calcExportBounds();
+      setTimeout(calcExportBounds, 400);
     }
   } else {
     // No car image — skip positioning, open tab synchronously then generate
@@ -725,6 +727,10 @@ function calcExportBounds() {
   // The image zone is the top 42% of the 9:16 viewport (matches canvas render)
   const zoneH = vpH * 0.42;
   const zoneW = vpW;
+
+  // Store for reuse in the generate handler (ensures ratio uses same coordinate space)
+  exportZoneW = zoneW;
+  exportZoneH = zoneH;
 
   // Scale image to COVER the image zone (like object-fit: cover)
   const scale = Math.max(zoneW / imgNatW, zoneH / imgNatH);
@@ -808,13 +814,9 @@ function closeExportModal() {
 }
 
 document.getElementById('generateExportBtn').addEventListener('click', () => {
-  // Convert pixel offset from preview into a ratio relative to the image zone
-  const vpW = exportViewport.clientWidth;
-  const vpH = exportViewport.clientHeight;
-  const zoneW = vpW;
-  const zoneH = vpH * 0.42;
-  const ratioX = zoneW > 0 ? exportImgOffset.x / zoneW : 0;
-  const ratioY = zoneH > 0 ? exportImgOffset.y / zoneH : 0;
+  // Use stored zone dims from calcExportBounds — same coordinate space as drag setup
+  const ratioX = exportZoneW > 0 ? exportImgOffset.x / exportZoneW : 0;
+  const ratioY = exportZoneH > 0 ? exportImgOffset.y / exportZoneH : 0;
   closeExportModal();
 
   // Open tab SYNCHRONOUSLY from the click event to avoid popup blocker
@@ -826,7 +828,24 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   showToast('Generating build sheet...');
 
   const W = 1080;
-  const H = 1920;
+  // Image zone is always fixed at 1920*0.42 so preview alignment stays accurate
+  const IMAGE_ZONE_H = Math.round(1920 * 0.42); // 806px
+
+  // Pre-calculate total content height to size canvas dynamically
+  const groupDefs = [
+    { label: 'INSTALLED', status: 'installed', color: '#22C55E' },
+    { label: 'ORDERED', status: 'ordered', color: '#3B82F6' },
+    { label: 'PLANNED', status: 'planned', color: '#F59E0B' }
+  ];
+  let modsContentH = 0;
+  for (const g of groupDefs) {
+    const count = (activeBuild.mods || []).filter(m => m.status === g.status).length;
+    if (count === 0) continue;
+    modsContentH += 10 + count * 64 + 30; // group label+pad + (name 38 + cat 26) per mod + gap
+  }
+  const baseImageBottom = activeBuild.image ? IMAGE_ZONE_H : 200;
+  const H = Math.max(1920, baseImageBottom + 106 + modsContentH + 160);
+
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -842,7 +861,7 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   if (activeBuild?.image) {
     try {
       const img = await loadImage(activeBuild.image);
-      const targetH = H * 0.42;
+      const targetH = IMAGE_ZONE_H;
       const scale = Math.max(W / img.width, targetH / img.height);
       const drawW = img.width * scale;
       const drawH = img.height * scale;
@@ -900,18 +919,10 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
   ctx.fillRect(60, y, W - 120, 1);
   y += 30;
 
-  // ── Mod list by status
-  const groups = [
-    { label: 'INSTALLED', status: 'installed', color: '#22C55E' },
-    { label: 'ORDERED', status: 'ordered', color: '#3B82F6' },
-    { label: 'PLANNED', status: 'planned', color: '#F59E0B' }
-  ];
-
-  for (const group of groups) {
+  // ── Mod list by status (groupDefs pre-defined above for height calculation)
+  for (const group of groupDefs) {
     const groupMods = activeBuild.mods.filter(m => m.status === group.status);
     if (groupMods.length === 0) continue;
-
-    if (y > H - 160) break;
 
     // Status label
     ctx.fillStyle = group.color;
@@ -926,8 +937,6 @@ async function generateExport(offsetRatioX, offsetRatioY, tab) {
     y += 10;
 
     for (const mod of groupMods) {
-      if (y > H - 160) break;
-
       y += 38;
       ctx.fillStyle = '#F0F0F0';
       ctx.font = '500 26px Inter, sans-serif';
